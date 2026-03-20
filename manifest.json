@@ -1,0 +1,15 @@
+{
+  "name": "NOVELPIA FREE",
+  "short_name": "노벨피아 프리",
+  "start_url": "/UJURO/",
+  "display": "standalone",
+  "background_color": "#121214",
+  "theme_color": "#3b82f6",
+  "icons": [
+    {
+      "src": "https://cdn-icons-png.flaticon.com/512/3502/3502688.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}
