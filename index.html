@@ -23,7 +23,6 @@
         .bg-np-blue { background-color: #3b82f6; }
         .glass { background: rgba(255, 255, 255, 0.03); backdrop-filter: blur(10px); border: 1px solid rgba(255, 255, 255, 0.08); }
         input, textarea { background: transparent !important; outline: none !important; color: #e1e1e1 !important; }
-        .loading-overlay { position: absolute; inset: 0; background: rgba(0,0,0,0.8); display: flex; align-items: center; justify-content: center; z-index: 50; }
     </style>
 </head>
 <body>
@@ -31,95 +30,94 @@
     <script type="text/babel">
         const { useState, useEffect } = React;
 
-        // 이미지 압축: 가로세로를 줄여 용량을 1/10로 만듭니다.
-        const compressImage = (file, maxSide) => {
-            return new Promise((resolve) => {
-                const reader = new FileReader();
-                reader.readAsDataURL(file);
-                reader.onload = (e) => {
-                    const img = new Image();
-                    img.src = e.target.result;
-                    img.onload = () => {
-                        const canvas = document.createElement('canvas');
-                        let w = img.width;
-                        let h = img.height;
-                        if (w > h) { if (w > maxSide) { h *= maxSide / w; w = maxSide; } }
-                        else { if (h > maxSide) { w *= maxSide / h; h = maxSide; } }
-                        canvas.width = w; canvas.height = h;
-                        canvas.getContext('2d').drawImage(img, 0, 0, w, h);
-                        resolve(canvas.toDataURL('image/jpeg', 0.5)); // 화질 50% 압축
-                    };
-                };
-            });
-        };
-
         const App = () => {
             const [view, setView] = useState('home');
-            const [novels, setNovels] = useState(() => JSON.parse(localStorage.getItem('np_data') || '[]'));
-            const [currentNovel, setCurrentNovel] = useState(null);
+            const [novels, setNovels] = useState(() => {
+                const saved = localStorage.getItem('ujuro_data');
+                return saved ? JSON.parse(saved) : [];
+            });
+            const [selectedId, setSelectedId] = useState(null);
+            
             const [novelForm, setNovelForm] = useState({ title: '', cover: null });
-            const [epForm, setEpForm] = useState({ title: '', content: '', illustration: null });
-            const [loading, setLoading] = useState(false);
+            const [epForm, setEpForm] = useState({ title: '', content: '' });
 
+            // 데이터 저장 및 아이콘 업데이트
             useEffect(() => {
-                try {
-                    localStorage.setItem('np_data', JSON.stringify(novels));
-                } catch (e) {
-                    alert("저장 공간이 꽉 찼습니다! 휴지통 버튼으로 데이터를 비워주세요.");
-                }
+                localStorage.setItem('ujuro_data', JSON.stringify(novels));
                 if (window.lucide) window.lucide.createIcons();
             }, [novels, view]);
 
-            const handleFile = async (e, type) => {
-                setLoading(true);
+            // 현재 선택된 작품 찾기
+            const currentNovel = novels.find(n => n.id === selectedId);
+
+            // 이미지 업로드 (압축 없이 원본 유지)
+            const handleFile = (e) => {
                 const file = e.target.files[0];
-                const compressed = await compressImage(file, type === 'cover' ? 300 : 600);
-                if(type === 'cover') setNovelForm({...novelForm, cover: compressed});
-                else setEpForm({...epForm, illustration: compressed});
-                setLoading(false);
+                if (!file) return;
+                const reader = new FileReader();
+                reader.onload = (event) => {
+                    setNovelForm({ ...novelForm, cover: event.target.result });
+                };
+                reader.readAsDataURL(file);
             };
 
-            if (loading) return <div className="loading-overlay"><div className="text-blue-500 font-bold">이미지 처리 중...</div></div>;
-
+            // 1. 홈 화면 (작품 목록)
             if (view === 'home') return (
                 <div className="min-h-screen max-w-[500px] mx-auto p-6">
-                    <header className="flex justify-between items-center mb-8">
+                    <header className="flex justify-between items-center mb-10">
                         <h1 className="text-2xl font-black italic text-blue-500">우주로</h1>
-                        <div className="flex gap-3">
-                            <button onClick={() => { if(confirm('전체 초기화?')) { localStorage.clear(); location.reload(); } }} className="opacity-20"><i data-lucide="trash-2"></i></button>
-                            <button onClick={() => setView('create')} className="bg-np-blue px-4 py-2 rounded-full text-xs font-bold">+ 연재</button>
-                        </div>
+                        <button onClick={() => setView('create_novel')} className="bg-np-blue px-5 py-2 rounded-full text-xs font-bold shadow-lg shadow-blue-500/20">+ 연재 시작</button>
                     </header>
                     <div className="grid grid-cols-2 gap-4">
                         {novels.map(n => (
-                            <div key={n.id} onClick={() => { setCurrentNovel(n); setView('detail'); }} className="glass rounded-xl overflow-hidden">
-                                <div className="aspect-[3/4] bg-white/5">
-                                    {n.cover && <img src={n.cover} className="w-full h-full object-cover" />}
+                            <div key={n.id} onClick={() => { setSelectedId(n.id); setView('detail'); }} className="active:scale-95 transition-transform">
+                                <div className="aspect-[3/4] glass rounded-xl overflow-hidden mb-2">
+                                    {n.cover ? <img src={n.cover} className="w-full h-full object-cover" /> : <div className="h-full flex items-center justify-center opacity-10">표지 없음</div>}
                                 </div>
-                                <div className="p-3 text-sm font-bold truncate">{n.title}</div>
+                                <div className="font-bold text-sm truncate px-1">{n.title}</div>
                             </div>
                         ))}
                     </div>
                 </div>
             );
 
-            if (view === 'create') return (
-                <div className="p-6 max-w-[500px] mx-auto">
-                    <button onClick={() => setView('home')} className="mb-8 opacity-50"><i data-lucide="chevron-left"></i></button>
-                    <div className="w-32 aspect-[3/4] glass mx-auto mb-8 rounded-xl overflow-hidden relative">
-                        {novelForm.cover ? <img src={novelForm.cover} className="w-full h-full object-cover" /> : <div className="h-full flex items-center justify-center opacity-10">표지</div>}
-                        <input type="file" onChange={(e) => handleFile(e, 'cover')} className="absolute inset-0 opacity-0" />
+            // 2. 작품 생성 화면
+            if (view === 'create_novel') return (
+                <div className="min-h-screen max-w-[500px] mx-auto p-6">
+                    <header className="flex justify-between items-center mb-10">
+                        <button onClick={() => setView('home')} className="opacity-50"><i data-lucide="x"></i></button>
+                        <h2 className="font-bold">작품 등록</h2>
+                        <button onClick={() => {
+                            if(!novelForm.title) return alert('제목을 입력하세요');
+                            setNovels([{ id: Date.now(), ...novelForm, episodes: [] }, ...novels]);
+                            setNovelForm({ title: '', cover: null });
+                            setView('home');
+                        }} className="text-blue-500 font-bold">완료</button>
+                    </header>
+                    <div className="space-y-8">
+                        <div className="w-32 aspect-[3/4] glass mx-auto rounded-xl overflow-hidden relative border-2 border-dashed border-white/10 flex items-center justify-center">
+                            {novelForm.cover ? <img src={novelForm.cover} className="w-full h-full object-cover" /> : <i data-lucide="image" className="opacity-10"></i>}
+                            <input type="file" accept="image/*" onChange={handleFile} className="absolute inset-0 opacity-0" />
+                        </div>
+                        <input type="text" placeholder="작품 제목" value={novelForm.title} onChange={e => setNovelForm({...novelForm, title: e.target.value})} className="w-full border-b border-white/10 py-4 text-xl font-bold" />
                     </div>
-                    <input type="text" placeholder="제목" value={novelForm.title} onChange={e => setNovelForm({...novelForm, title: e.target.value})} className="w-full border-b border-white/10 py-4 text-xl" />
-                    <button onClick={() => { setNovels([{id:Date.now(), ...novelForm, episodes:[]}, ...novels]); setView('home'); }} className="w-full bg-blue-500 py-4 rounded-xl mt-8 font-bold">작품 등록</button>
                 </div>
             );
 
-            return null;
-        };
-
-        const root = ReactDOM.createRoot(document.getElementById('root'));
-        root.render(<App />);
-    </script>
-</body>
-</html>
+            // 3. 작품 상세 (회차 목록)
+            if (view === 'detail' && currentNovel) return (
+                <div className="min-h-screen max-w-[500px] mx-auto">
+                    <div className="p-6 border-b border-white/5 flex gap-5 items-end bg-white/5">
+                        <div className="w-24 aspect-[3/4] glass rounded-lg overflow-hidden shrink-0 shadow-2xl">
+                            {currentNovel.cover && <img src={currentNovel.cover} className="w-full h-full object-cover" />}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                            <h2 className="text-xl font-black mb-3 truncate">{currentNovel.title}</h2>
+                            <div className="flex gap-2">
+                                <button onClick={() => setView('home')} className="bg-white/10 px-4 py-2 rounded-lg text-xs font-bold">뒤로</button>
+                                <button onClick={() => setView('write_ep')} className="bg-np-blue px-4 py-2 rounded-lg text-xs font-bold">회차 쓰기</button>
+                            </div>
+                        </div>
+                    </div>
+                    <div className="p-6 space-y-3">
+                        {currentNovel.episodes.length ===
