@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>NOVEL-FREE</title>
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;700;900&display=swap');
+        body { font-family: 'Noto Sans KR', sans-serif; background-color: #0f1012; color: #e1e1e1; margin: 0; padding: 0; overflow-x: hidden; }
+        .pink-gradient { background: linear-gradient(135deg, #ff4e84 0%, #ff8ab3 100%); }
+        .glass { background: rgba(255, 255, 255, 0.05); backdrop-filter: blur(10px); border: 1px solid rgba(255, 255, 255, 0.1); }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+    <script type="text/babel">
+        const { useState, useEffect } = React;
+        const App = () => {
+            useEffect(() => { if (window.lucide) window.lucide.createIcons(); }, []);
+            return (
+                <div className="min-h-screen max-w-[500px] mx-auto flex flex-col items-center justify-center p-6 text-center">
+                    <div className="w-24 h-24 pink-gradient rounded-[32px] flex items-center justify-center mb-8 shadow-2xl shadow-pink-500/40 rotate-12">
+                        <i data-lucide="book-open" className="text-white w-12 h-12"></i>
+                    </div>
+                    <h1 className="text-5xl font-black italic text-white mb-4 tracking-tighter">NOVEL<span className="text-[#ff4e84]">-</span>FREE</h1>
+                    <p className="text-lg opacity-60 mb-10 font-medium">당신만의 무한한 상상력,<br/>지금 바로 시작하세요.</p>
+                    
+                    <div className="glass w-full p-8 rounded-[40px] mb-10">
+                        <div className="flex justify-around mb-6 text-[#ff4e84]">
+                            <i data-lucide="sparkles"></i>
+                            <i data-lucide="feather"></i>
+                            <i data-lucide="library"></i>
+                        </div>
+                        <p className="text-sm font-bold text-white/90">준비가 모두 끝났습니다!</p>
+                    </div>
+
+                    <button onClick={() => alert('웹 앱이 활성화되었습니다!')} className="w-full py-5 pink-gradient rounded-3xl font-black text-white text-xl shadow-xl active:scale-95 transition-transform">
+                        앱 실행하기
+                    </button>
+                    
+                    <p className="mt-8 text-xs opacity-30">© 2026 UJURO NOVEL PLATFORM</p>
+                </div>
+            );
+        };
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+</html>
