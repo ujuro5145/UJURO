@@ -1,15 +1,17 @@
-<link rel="manifest" href="manifest.json">
-<script>
-  if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.register('sw.js');
-  }
-</script>
 <!DOCTYPE html>
 <html lang="ko">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>NOVEL-FREE</title>
+    <title>우주로 (UJURO)</title>
+    
+    <link rel="manifest" href="manifest.json">
+    <script>
+      if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.register('sw.js');
+      }
+    </script>
+
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
     <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
@@ -17,11 +19,12 @@
     <script src="https://unpkg.com/lucide@latest"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;700;900&display=swap');
-        body { font-family: 'Noto Sans KR', sans-serif; background-color: #121214; color: #e1e1e1; margin: 0; }
-        .np-blue { background-color: #3b82f6; }
-        .np-card { background: #1e1e21; border: 1px solid #2d2d31; }
-        .line-clamp-2 { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
-        ::-webkit-scrollbar { display: none; }
+        body { font-family: 'Noto Sans KR', sans-serif; background-color: #121214; color: #e1e1e1; margin: 0; -webkit-tap-highlight-color: transparent; }
+        .np-blue { color: #3b82f6; }
+        .bg-np-blue { background-color: #3b82f6; }
+        .glass { background: rgba(255, 255, 255, 0.03); backdrop-filter: blur(10px); border: 1px solid rgba(255, 255, 255, 0.08); }
+        .line-clamp-1 { display: -webkit-box; -webkit-line-clamp: 1; -webkit-box-orient: vertical; overflow: hidden; }
+        input, textarea { background: transparent !important; outline: none !important; }
     </style>
 </head>
 <body>
@@ -31,136 +34,189 @@
 
         const App = () => {
             const [view, setView] = useState('home'); 
-            const [novels, setNovels] = useState(() => {
-                const saved = localStorage.getItem('np_novels');
-                return saved ? JSON.parse(saved) : [];
-            });
-            const [selectedNovel, setSelectedNovel] = useState(null);
-            
-            // 글쓰기 폼
-            const [title, setTitle] = useState('');
-            const [content, setContent] = useState('');
-            const [cover, setCover] = useState(null);
+            const [novels, setNovels] = useState(() => JSON.parse(localStorage.getItem('np_data') || '[]'));
+            const [currentNovel, setCurrentNovel] = useState(null);
+            const [currentEpisode, setCurrentEpisode] = useState(null);
+            const [editTarget, setEditTarget] = useState(null);
+
+            const [novelForm, setNovelForm] = useState({ title: '', cover: null });
+            const [epForm, setEpForm] = useState({ title: '', content: '', illustration: null });
+            const [showMenuId, setShowMenuId] = useState(null);
 
             useEffect(() => {
-                localStorage.setItem('np_novels', JSON.stringify(novels));
+                localStorage.setItem('np_data', JSON.stringify(novels));
                 if (window.lucide) window.lucide.createIcons();
-            }, [novels, view]);
+            }, [novels, view, showMenuId]);
 
-            const handleImageChange = (e) => {
-                const file = e.target.files[0];
-                if (file) {
-                    const reader = new FileReader();
-                    reader.onloadend = () => setCover(reader.result);
-                    reader.readAsDataURL(file);
-                }
+            const handleFile = (e, type) => {
+                const reader = new FileReader();
+                reader.onload = () => {
+                    if(type === 'cover') setNovelForm({...novelForm, cover: reader.result});
+                    else setEpForm({...epForm, illustration: reader.result});
+                };
+                reader.readAsDataURL(e.target.files[0]);
             };
 
-            const handleSave = () => {
-                if (!title || !content) return alert('제목과 내용을 입력해주세요!');
-                const newNovel = { 
-                    id: Date.now(), 
-                    title, content, cover, 
-                    author: "나의 작가",
-                    stats: { views: "0", likes: "0", stars: "0" },
-                    date: new Date().toLocaleDateString() 
-                };
+            const addNovel = () => {
+                if (!novelForm.title) return alert('제목을 입력하세요!');
+                const newNovel = { id: Date.now(), ...novelForm, episodes: [] };
                 setNovels([newNovel, ...novels]);
-                setTitle(''); setContent(''); setCover(null);
+                setNovelForm({ title: '', cover: null });
                 setView('home');
             };
 
-            // --- 1. 작성 화면 ---
-            if (view === 'write') return (
-                <div className="min-h-screen bg-[#121214] max-w-[500px] mx-auto">
-                    <header className="p-4 flex justify-between items-center border-b border-white/5 sticky top-0 bg-[#121214] z-10">
-                        <button onClick={() => setView('home')}><i data-lucide="chevron-left"></i></button>
-                        <h2 className="font-bold">작품 연재하기</h2>
-                        <button onClick={handleSave} className="text-blue-400 font-bold">등록</button>
+            const addEpisode = () => {
+                if (!epForm.title || !epForm.content) return alert('제목과 내용을 입력하세요!');
+                const updatedNovels = novels.map(n => {
+                    if (n.id === currentNovel.id) {
+                        const newEp = { id: Date.now(), ...epForm, date: new Date().toLocaleDateString() };
+                        const updatedEps = editTarget 
+                            ? n.episodes.map(e => e.id === editTarget.id ? {...newEp, id: e.id} : e)
+                            : [...n.episodes, newEp];
+                        return { ...n, episodes: updatedEps };
+                    }
+                    return n;
+                });
+                setNovels(updatedNovels);
+                setCurrentNovel(updatedNovels.find(n => n.id === currentNovel.id));
+                setEpForm({ title: '', content: '', illustration: null });
+                setEditTarget(null);
+                setView('novel_detail');
+            };
+
+            const deleteEpisode = (id) => {
+                if(!confirm('정말 삭제하시겠습니까?')) return;
+                const updatedNovels = novels.map(n => {
+                    if (n.id === currentNovel.id) {
+                        return { ...n, episodes: n.episodes.filter(e => e.id !== id) };
+                    }
+                    return n;
+                });
+                setNovels(updatedNovels);
+                setCurrentNovel(updatedNovels.find(n => n.id === currentNovel.id));
+                setShowMenuId(null);
+            };
+
+            // 1. 홈 화면
+            if (view === 'home') return (
+                <div className="min-h-screen max-w-[500px] mx-auto pb-20">
+                    <header className="p-6 flex justify-between items-center sticky top-0 bg-[#121214] z-20">
+                        <h1 className="text-2xl font-black italic text-blue-500">우주로</h1>
+                        <button onClick={() => setView('create_novel')} className="bg-np-blue text-white text-xs font-bold px-4 py-2 rounded-full shadow-lg shadow-blue-500/20">+ 연재하기</button>
                     </header>
-                    <div className="p-6 space-y-6">
-                        <div className="w-[140px] aspect-[3/4] mx-auto bg-white/5 rounded-lg overflow-hidden border border-dashed border-white/20 relative">
-                            {cover ? <img src={cover} className="w-full h-full object-cover" /> : <div className="flex flex-col items-center justify-center h-full opacity-20 text-xs text-center p-2"><i data-lucide="image" className="mb-2"></i>표지 추가</div>}
-                            <input type="file" onChange={handleImageChange} className="absolute inset-0 opacity-0" />
-                        </div>
-                        <input type="text" placeholder="작품 제목" value={title} onChange={(e) => setTitle(e.target.value)} className="w-full bg-transparent border-b border-white/10 p-2 text-xl font-bold outline-none focus:border-blue-500" />
-                        <textarea placeholder="줄거리를 입력하세요..." value={content} onChange={(e) => setContent(e.target.value)} className="w-full bg-transparent p-2 h-[400px] outline-none resize-none leading-relaxed text-sm"></textarea>
-                    </div>
-                </div>
-            );
-
-            // --- 2. 뷰어 화면 (노벨피아 스타일) ---
-            if (view === 'viewer') return (
-                <div className="min-h-screen bg-[#1a1b1e] max-w-[500px] mx-auto">
-                    <header className="p-4 flex items-center gap-4 border-b border-white/5 sticky top-0 bg-[#1a1b1e] z-10">
-                        <button onClick={() => setView('home')}><i data-lucide="arrow-left" size="20"></i></button>
-                        <h2 className="text-sm font-medium truncate">{selectedNovel.title}</h2>
-                    </header>
-                    <div className="p-6 leading-[2] text-[17px] text-gray-200 tracking-wide font-light whitespace-pre-wrap">
-                        {selectedNovel.content}
-                    </div>
-                    <div className="p-10 text-center opacity-20 border-t border-white/5">이 작품의 끝입니다.</div>
-                </div>
-            );
-
-            // --- 3. 메인 홈 화면 ---
-            return (
-                <div className="min-h-screen max-w-[500px] mx-auto pb-24">
-                    <header className="p-5 flex justify-between items-center sticky top-0 bg-[#121214] z-10">
-                        <h1 className="text-xl font-black italic text-blue-500 tracking-tighter">NOVELPIA FREE</h1>
-                        <div className="flex gap-4"><i data-lucide="search" size="22"></i><i data-lucide="bell" size="22"></i></div>
-                    </header>
-                    
-                    <main className="px-5">
-                        {/* 상단 배너 */}
-                        <div className="w-full aspect-[16/7] bg-gradient-to-br from-blue-600 to-purple-700 rounded-2xl mb-8 p-6 flex flex-col justify-end shadow-lg shadow-blue-900/20">
-                            <span className="text-[10px] font-bold bg-black/20 self-start px-2 py-0.5 rounded-full mb-2">NEW EVENT</span>
-                            <h2 className="text-xl font-black leading-tight">상상의 한계가 없는 곳,<br/>자유로운 연재 플랫폼</h2>
-                        </div>
-
-                        <div className="flex justify-between items-end mb-4">
-                            <h3 className="font-bold text-lg">최근 올라온 작품</h3>
-                            <button onClick={() => setView('write')} className="text-xs bg-blue-500 px-3 py-1 rounded-full font-bold">연재하기</button>
-                        </div>
-
-                        {novels.length === 0 ? (
-                            <div className="py-20 text-center opacity-20 border-2 border-dashed border-white/5 rounded-2xl">
-                                <i data-lucide="plus-circle" className="mx-auto mb-2"></i>
-                                <p className="text-xs font-medium">작품이 없습니다. 첫 글을 써보세요!</p>
+                    <main className="px-6 grid grid-cols-2 gap-4">
+                        {novels.map(n => (
+                            <div key={n.id} onClick={() => {setCurrentNovel(n); setView('novel_detail');}} className="active:scale-95 transition-all">
+                                <div className="aspect-[3/4] bg-white/5 rounded-xl overflow-hidden mb-2 border border-white/5 shadow-lg relative">
+                                    {n.cover ? <img src={n.cover} className="w-full h-full object-cover" /> : <div className="h-full flex items-center justify-center opacity-10">표지 없음</div>}
+                                </div>
+                                <div className="font-bold text-sm line-clamp-1">{n.title}</div>
+                                <div className="text-[10px] opacity-40 font-bold uppercase tracking-tighter">{n.episodes.length} 회차 연재 중</div>
                             </div>
-                        ) : (
-                            <div className="grid grid-cols-2 gap-4">
-                                {novels.map(novel => (
-                                    <div key={novel.id} onClick={() => { setSelectedNovel(novel); setView('viewer'); }} className="group active:scale-95 transition-all">
-                                        <div className="aspect-[3/4] rounded-lg overflow-hidden bg-white/5 mb-2 shadow-md relative">
-                                            {novel.cover ? <img src={novel.cover} className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center opacity-10 font-bold">NO IMAGE</div>}
-                                            <div className="absolute bottom-0 left-0 right-0 p-2 bg-gradient-to-t from-black/80 to-transparent">
-                                                <div className="flex items-center gap-2 text-[10px] font-bold">
-                                                    <span className="text-blue-400 flex items-center gap-0.5"><i data-lucide="eye" size="10"></i> 0</span>
-                                                    <span className="text-red-400 flex items-center gap-0.5"><i data-lucide="heart" size="10"></i> 0</span>
-                                                </div>
-                                            </div>
-                                        </div>
-                                        <h4 className="font-bold text-sm truncate">{novel.title}</h4>
-                                        <p className="text-[11px] opacity-40 italic">{novel.author}</p>
-                                    </div>
-                                ))}
-                            </div>
-                        )}
+                        ))}
                     </main>
-
-                    {/* 하단 바 */}
-                    <nav className="fixed bottom-0 left-0 right-0 max-w-[500px] mx-auto bg-[#121214] border-t border-white/5 p-4 px-10 flex justify-between items-center">
-                        <i data-lucide="home" className="text-blue-500"></i>
-                        <i data-lucide="award" className="opacity-30"></i>
-                        <i data-lucide="library" className="opacity-30"></i>
-                        <i data-lucide="user" className="opacity-30"></i>
-                    </nav>
                 </div>
             );
+
+            // 2. 작품 생성
+            if (view === 'create_novel') return (
+                <div className="min-h-screen max-w-[500px] mx-auto p-6">
+                    <header className="flex justify-between items-center mb-10 pt-4">
+                        <button onClick={() => setView('home')} className="opacity-40"><i data-lucide="x"></i></button>
+                        <h2 className="font-bold text-blue-500 text-lg">새 작품 등록</h2>
+                        <button onClick={addNovel} className="font-bold text-blue-400">완료</button>
+                    </header>
+                    <div className="space-y-10">
+                        <div className="w-32 aspect-[3/4] mx-auto glass rounded-2xl relative overflow-hidden flex flex-col items-center justify-center border-dashed border-2 border-white/10 shadow-2xl">
+                            {novelForm.cover ? <img src={novelForm.cover} className="w-full h-full object-cover" /> : <i data-lucide="image" className="opacity-10"></i>}
+                            <input type="file" onChange={(e) => handleFile(e, 'cover')} className="absolute inset-0 opacity-0 cursor-pointer" />
+                        </div>
+                        <input type="text" placeholder="작품 제목을 입력하세요" value={novelForm.title} onChange={(e) => setNovelForm({...novelForm, title: e.target.value})} className="w-full border-b border-white/10 py-3 text-2xl font-black focus:border-blue-500 transition-colors placeholder:text-white/10" />
+                    </div>
+                </div>
+            );
+
+            // 3. 작품 상세 및 회차 목록
+            if (view === 'novel_detail') return (
+                <div className="min-h-screen max-w-[500px] mx-auto pb-10">
+                    <div className="relative h-[260px] flex items-end p-6 overflow-hidden">
+                        {currentNovel.cover && <img src={currentNovel.cover} className="absolute inset-0 w-full h-full object-cover opacity-20 blur-xl scale-110" />}
+                        <button onClick={() => setView('home')} className="absolute top-8 left-6 z-20 bg-black/20 p-2 rounded-full"><i data-lucide="chevron-left"></i></button>
+                        <div className="relative z-10 flex gap-5 items-end">
+                            <div className="w-24 aspect-[3/4] rounded-lg shadow-2xl overflow-hidden border border-white/10">
+                                {currentNovel.cover && <img src={currentNovel.cover} className="w-full h-full object-cover" />}
+                            </div>
+                            <div className="mb-1">
+                                <h2 className="text-2xl font-black mb-2">{currentNovel.title}</h2>
+                                <button onClick={() => setView('write_episode')} className="bg-np-blue text-white text-[11px] font-black px-5 py-2 rounded-lg shadow-lg">회차 작성</button>
+                            </div>
+                        </div>
+                    </div>
+                    <div className="p-6 space-y-3">
+                        {currentNovel.episodes.map((ep, idx) => (
+                            <div key={ep.id} className="glass p-5 rounded-2xl flex justify-between items-center active:scale-[0.98] transition-all">
+                                <div onClick={() => {setCurrentEpisode(ep); setView('reader');}} className="flex-1">
+                                    <div className="text-[10px] text-blue-500 font-bold mb-0.5">{idx + 1}화</div>
+                                    <div className="font-bold text-[15px] mb-1 text-white/90">{ep.title}</div>
+                                    <div className="text-[10px] opacity-30 font-medium tracking-wider uppercase">{ep.date}</div>
+                                </div>
+                                <div className="relative">
+                                    <button onClick={() => setShowMenuId(showMenuId === ep.id ? null : ep.id)} className="p-2 opacity-20 hover:opacity-100"><i data-lucide="more-vertical" size="18"></i></button>
+                                    {showMenuId === ep.id && (
+                                        <div className="absolute right-0 top-10 w-24 glass rounded-xl shadow-2xl z-30 overflow-hidden border border-white/10">
+                                            <button onClick={() => {setEditTarget(ep); setEpForm({title: ep.title, content: ep.content, illustration: ep.illustration}); setView('write_episode'); setShowMenuId(null);}} className="w-full p-3 text-xs font-bold border-b border-white/5 hover:bg-white/5 text-white/70">수정</button>
+                                            <button onClick={() => deleteEpisode(ep.id)} className="w-full p-3 text-xs font-bold text-red-400 hover:bg-white/5">삭제</button>
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            );
+
+            // 4. 회차 작성/수정
+            if (view === 'write_episode') return (
+                <div className="min-h-screen max-w-[500px] mx-auto p-6">
+                    <header className="flex justify-between items-center mb-8 pt-4">
+                        <button onClick={() => {setView('novel_detail'); setEditTarget(null); setEpForm({title:'', content:'', illustration: null});}}><i data-lucide="chevron-left"></i></button>
+                        <h2 className="font-black text-xs tracking-widest text-blue-500">{editTarget ? '회차 수정' : '신규 회차 작성'}</h2>
+                        <button onClick={addEpisode} className="font-bold text-blue-400">게재하기</button>
+                    </header>
+                    <div className="space-y-6">
+                        <input type="text" placeholder="회차 제목" value={epForm.title} onChange={(e) => setEpForm({...epForm, title: e.target.value})} className="w-full border-b border-white/10 py-2 text-xl font-bold focus:border-blue-500 transition-colors" />
+                        <div className="relative w-full aspect-video glass rounded-2xl overflow-hidden flex flex-col items-center justify-center border-dashed border border-white/10">
+                            {epForm.illustration ? <img src={epForm.illustration} className="w-full h-full object-cover" /> : <><i data-lucide="image" className="opacity-10 mb-1"></i><span className="text-[10px] opacity-20 font-bold">삽화 추가</span></>}
+                            <input type="file" onChange={(e) => handleFile(e, 'ep')} className="absolute inset-0 opacity-0 cursor-pointer" />
+                        </div>
+                        <textarea placeholder="작품 내용을 입력하세요..." value={epForm.content} onChange={(e) => setEpForm({...epForm, content: e.target.value})} className="w-full h-[400px] resize-none leading-[1.8] text-[16px] font-light placeholder:opacity-20 text-white/80"></textarea>
+                    </div>
+                </div>
+            );
+
+            // 5. 독자 뷰어
+            if (view === 'reader') return (
+                <div className="min-h-screen bg-[#1a1b1e] max-w-[500px] mx-auto">
+                    <header className="p-4 flex items-center justify-between border-b border-white/5 sticky top-0 bg-[#1a1b1e] z-10">
+                        <button onClick={() => setView('novel_detail')}><i data-lucide="arrow-left" size="20"></i></button>
+                        <h2 className="text-[11px] font-bold truncate opacity-40 max-w-[200px]">{currentEpisode.title}</h2>
+                        <i data-lucide="settings" size="18" className="opacity-20"></i>
+                    </header>
+                    <div className="p-6">
+                        {currentEpisode.illustration && <img src={currentEpisode.illustration} className="w-full rounded-2xl mb-10 shadow-2xl" />}
+                        <div className="leading-[2.2] text-[18px] text-gray-200 tracking-wide font-light whitespace-pre-wrap">
+                            {currentEpisode.content}
+                        </div>
+                    </div>
+                </div>
+            );
+
+            return null;
         };
+
         const root = ReactDOM.createRoot(document.getElementById('root'));
         root.render(<App />);
     </script>
 </body>
 </html>
+
