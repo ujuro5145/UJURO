@@ -11,9 +11,10 @@
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
     <style>
-        body { background-color: #0f172a; color: #f1f5f9; margin: 0; font-family: sans-serif; }
+        body { background-color: #0f172a; color: #f1f5f9; margin: 0; font-family: sans-serif; -webkit-tap-highlight-color: transparent; }
         .card { background: #1e293b; border: 1px solid #334155; border-radius: 1rem; overflow: hidden; }
         input, textarea { background: transparent; border: none; outline: none; color: white; width: 100%; }
+        .content-img { width: 100%; border-radius: 0.75rem; margin: 1.5rem 0; shadow: 0 10px 15px -3px rgba(0,0,0,0.5); }
     </style>
 </head>
 <body>
@@ -23,96 +24,51 @@
 
         const App = () => {
             const [view, setView] = useState('home');
-            // 저장 키를 아예 새것으로 교체 (충돌 방지)
-            const [data, setData] = useState(() => JSON.parse(localStorage.getItem('archive_final_v1') || '[]'));
+            const [data, setData] = useState(() => JSON.parse(localStorage.getItem('archive_final_v2') || '[]'));
             const [activeId, setActiveId] = useState(null);
-            const [f, setF] = useState({ t: '', c: null }); // 작품 폼
-            const [e, setE] = useState({ t: '', b: '' }); // 회차 폼
+            const [activeEpIdx, setActiveEpIdx] = useState(null);
+
+            const [f, setF] = useState({ t: '', c: null });
+            const [e, setE] = useState({ t: '', b: '', imgs: [] });
 
             useEffect(() => {
-                localStorage.setItem('archive_final_v1', JSON.stringify(data));
+                localStorage.setItem('archive_final_v2', JSON.stringify(data));
                 if (window.lucide) window.lucide.createIcons();
             }, [data, view]);
 
             const cur = data.find(i => i.id === activeId);
+            const curEp = cur?.eps[activeEpIdx];
 
+            // 삽화 추가 핸들러
+            const addIllustration = (ev) => {
+                const file = ev.target.files[0];
+                if (!file) return;
+                const r = new FileReader();
+                r.onload = _ => {
+                    const imgId = `[IMG_${Date.now()}]`;
+                    setE({
+                        ...e,
+                        b: e.b + `\n${imgId}\n`,
+                        imgs: [...(e.imgs || []), { id: imgId, data: _.target.result }]
+                    });
+                };
+                r.readAsDataURL(file);
+            };
+
+            // 홈 화면
             if (view === 'home') return (
                 <div className="p-6 max-w-md mx-auto">
                     <div className="flex justify-between items-center mb-10">
-                        <h1 className="text-xl font-black">ARCHIVE</h1>
-                        <button onClick={() => setView('add')} className="bg-indigo-600 px-4 py-2 rounded-full text-sm font-bold">+ 추가</button>
+                        <h1 className="text-xl font-black tracking-widest text-indigo-400">ARCHIVE</h1>
+                        <button onClick={() => setView('add')} className="bg-indigo-600 px-4 py-2 rounded-full text-xs font-bold shadow-lg shadow-indigo-500/20">+ NEW STORY</button>
                     </div>
                     <div className="grid grid-cols-2 gap-4">
                         {data.map(i => (
-                            <div key={i.id} onClick={() => { setActiveId(i.id); setView('list'); }}>
-                                <div className="aspect-[3/4] card mb-2">{i.c && <img src={i.c} className="w-full h-full object-cover" />}</div>
-                                <div className="text-sm font-bold truncate">{i.t}</div>
+                            <div key={i.id} onClick={() => { setActiveId(i.id); setView('list'); }} className="active:scale-95 transition-transform">
+                                <div className="aspect-[3/4] card mb-2 shadow-xl">{i.c && <img src={i.c} className="w-full h-full object-cover" />}</div>
+                                <div className="text-sm font-bold truncate px-1">{i.t}</div>
                             </div>
                         ))}
                     </div>
-                </div>
-            );
 
-            if (view === 'add') return (
-                <div className="p-6 max-w-md mx-auto">
-                    <button onClick={() => setView('home')} className="mb-6 opacity-50">취소</button>
-                    <div className="w-32 aspect-[3/4] card mx-auto mb-8 relative flex items-center justify-center border-dashed">
-                        {f.c ? <img src={f.c} className="w-full h-full object-cover" /> : <span>표지</span>}
-                        <input type="file" onChange={ev => {
-                            const r = new FileReader();
-                            r.onload = _ => setF({...f, c: _.target.result});
-                            r.readAsDataURL(ev.target.files[0]);
-                        }} className="absolute inset-0 opacity-0" />
-                    </div>
-                    <input placeholder="제목" value={f.t} onChange={ev => setF({...f, t: ev.target.value})} className="text-xl border-b border-white/10 py-2 mb-8" />
-                    <button onClick={() => {
-                        if(!f.t) return;
-                        setData([{ id: Date.now(), ...f, eps: [] }, ...data]);
-                        setF({t:'', c:null}); setView('home');
-                    }} className="w-full bg-indigo-600 py-4 rounded-xl font-bold">등록</button>
-                </div>
-            );
-
-            if (view === 'list' && cur) return (
-                <div className="max-w-md mx-auto min-h-screen">
-                    <div className="p-6 flex gap-4 items-end bg-slate-800">
-                        <div className="w-20 aspect-[3/4] card shrink-0">{cur.c && <img src={cur.c} className="w-full h-full object-cover" />}</div>
-                        <div className="flex-1">
-                            <h2 className="text-lg font-bold mb-4">{cur.t}</h2>
-                            <div className="flex gap-2">
-                                <button onClick={() => setView('home')} className="bg-white/10 px-3 py-1 rounded text-xs">홈</button>
-                                <button onClick={() => setView('write')} className="bg-indigo-600 px-3 py-1 rounded text-xs">작성</button>
-                            </div>
-                        </div>
-                    </div>
-                    <div className="p-6 space-y-2">
-                        {cur.eps.map((ep, i) => (
-                            <div key={ep.id} className="card p-4 flex justify-between">
-                                <span>{i+1}. {ep.t}</span>
-                            </div>
-                        ))}
-                    </div>
-                </div>
-            );
-
-            if (view === 'write') return (
-                <div className="p-6 max-w-md mx-auto">
-                    <div className="flex justify-between mb-6">
-                        <button onClick={() => setView('list')}>닫기</button>
-                        <button onClick={() => {
-                            const next = data.map(i => i.id === activeId ? {...i, eps: [...i.eps, {id: Date.now(), ...e}]} : i);
-                            setData(next); setE({t:'', b:''}); setView('list');
-                        }} className="text-indigo-400 font-bold">저장</button>
-                    </div>
-                    <input placeholder="회차 제목" value={e.t} onChange={ev => setE({...e, t: ev.target.value})} className="text-lg font-bold mb-4" />
-                    <textarea placeholder="내용" value={e.b} onChange={ev => setE({...e, b: ev.target.value})} className="h-96" />
-                </div>
-            );
-            return null;
-        };
-        const root = ReactDOM.createRoot(document.getElementById('root'));
-        root.render(<App />);
-    </script>
-</body>
-</html>
-
+            
