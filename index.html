@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="ko">
 <head>
@@ -11,10 +12,11 @@
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
     <style>
-        body { background-color: #0f172a; color: #f1f5f9; margin: 0; font-family: sans-serif; -webkit-user-select: none; }
+        body { background-color: #0f172a; color: #f1f5f9; margin: 0; font-family: sans-serif; -webkit-tap-highlight-color: transparent; }
         .card { background: #1e293b; border: 1px solid #334155; border-radius: 1rem; overflow: hidden; }
         input, textarea { background: transparent; border: none; outline: none; color: white; width: 100%; }
-        .content-img { width: 100%; border-radius: 0.75rem; margin: 1.5rem 0; box-shadow: 0 10px 20px rgba(0,0,0,0.5); }
+        /* 로딩 중일 때 터치 방지 */
+        .loading { pointer-events: none; opacity: 0.5; }
     </style>
 </head>
 <body>
@@ -25,84 +27,89 @@
         const App = () => {
             const [view, setView] = useState('home');
             const [data, setData] = useState(() => {
-                try {
-                    return JSON.parse(localStorage.getItem('archive_final_v3') || '[]');
-                } catch(e) { return []; }
+                try { return JSON.parse(localStorage.getItem('archive_final_v4') || '[]'); } 
+                catch(e) { return []; }
             });
             const [activeId, setActiveId] = useState(null);
             const [activeEpIdx, setActiveEpIdx] = useState(null);
+            const [isProcessing, setIsProcessing] = useState(false); // 로딩 상태 추가
 
             const [f, setF] = useState({ t: '', c: null });
             const [e, setE] = useState({ t: '', b: '', imgs: [] });
 
             useEffect(() => {
-                try {
-                    localStorage.setItem('archive_final_v3', JSON.stringify(data));
-                } catch(err) {
-                    alert("용량이 부족합니다! 사진을 줄이거나 이전 작품을 삭제해주세요.");
-                }
+                localStorage.setItem('archive_final_v4', JSON.stringify(data));
                 if (window.lucide) window.lucide.createIcons();
             }, [data, view]);
 
             const cur = data.find(i => i.id === activeId);
             const curEp = cur?.eps ? cur.eps[activeEpIdx] : null;
 
-            // 1. 홈 화면
+            // 사진 선택 시 멈춤 방지용 비동기 처리
+            const handleFile = (file, callback) => {
+                if (!file) return;
+                setIsProcessing(true);
+                const r = new FileReader();
+                r.onload = (event) => {
+                    callback(event.target.result);
+                    setIsProcessing(false);
+                };
+                r.onerror = () => {
+                    alert("사진 로드 실패");
+                    setIsProcessing(false);
+                };
+                r.readAsDataURL(file);
+            };
+
             if (view === 'home') return (
                 <div className="p-6 max-w-md mx-auto">
-                    <header className="flex justify-between items-center mb-10">
+                    <header className="flex justify-between items-center mb-10 pt-4">
                         <h1 className="text-xl font-black text-indigo-400">ARCHIVE</h1>
-                        <button onClick={() => setView('add')} className="bg-indigo-600 px-4 py-2 rounded-full text-xs font-bold">+ 신규</button>
+                        <button onClick={() => setView('add')} className="bg-indigo-600 px-5 py-2 rounded-full text-xs font-bold shadow-lg shadow-indigo-500/30">+ 신규</button>
                     </header>
-                    <div className="grid grid-cols-2 gap-4">
+                    <div className="grid grid-cols-2 gap-5">
                         {data.map(i => (
-                            <div key={i.id} onClick={() => { setActiveId(i.id); setView('list'); }}>
-                                <div className="aspect-[3/4] card mb-2">{i.c && <img src={i.c} className="w-full h-full object-cover" />}</div>
-                                <div className="text-sm font-bold truncate px-1">{i.t}</div>
+                            <div key={i.id} onClick={() => { setActiveId(i.id); setView('list'); }} className="active:scale-95 transition-transform">
+                                <div className="aspect-[3/4] card mb-2 shadow-xl border-white/5">{i.c && <img src={i.c} className="w-full h-full object-cover" />}</div>
+                                <div className="text-sm font-bold truncate px-1 opacity-80">{i.t}</div>
                             </div>
                         ))}
                     </div>
                 </div>
             );
 
-            // 2. 작품 생성
             if (view === 'add') return (
-                <div className="p-6 max-w-md mx-auto">
-                    <button onClick={() => setView('home')} className="mb-6 opacity-40"><i data-lucide="chevron-left"></i></button>
-                    <div className="w-32 aspect-[3/4] card mx-auto mb-8 relative flex items-center justify-center">
-                        {f.c ? <img src={f.c} className="w-full h-full object-cover" /> : <i data-lucide="image" className="opacity-20"></i>}
-                        <input type="file" accept="image/*" onChange={ev => {
-                            const r = new FileReader();
-                            r.onload = _ => setF({...f, c: _.target.result});
-                            r.readAsDataURL(ev.target.files[0]);
-                        }} className="absolute inset-0 opacity-0" />
+                <div className={`p-6 max-w-md mx-auto ${isProcessing ? 'loading' : ''}`}>
+                    <button onClick={() => setView('home')} className="mb-8 opacity-40"><i data-lucide="arrow-left"></i></button>
+                    <div className="w-40 aspect-[3/4] card mx-auto mb-10 relative flex items-center justify-center border-dashed border-white/10">
+                        {f.c ? <img src={f.c} className="w-full h-full object-cover" /> : <div className="text-center opacity-20"><i data-lucide="image" className="mx-auto mb-2"></i><p className="text-[10px]">표지 선택</p></div>}
+                        <input type="file" accept="image/*" onChange={(ev) => handleFile(ev.target.files[0], (res) => setF({...f, c: res}))} className="absolute inset-0 opacity-0 cursor-pointer" />
                     </div>
-                    <input placeholder="제목" value={f.t} onChange={ev => setF({...f, t: ev.target.value})} className="text-xl border-b border-white/10 py-4 mb-8 font-bold" />
+                    <input placeholder="이야기 제목" value={f.t} onChange={ev => setF({...f, t: ev.target.value})} className="text-2xl border-b border-white/5 py-4 mb-10 font-black" />
                     <button onClick={() => {
-                        if(!f.t) return;
+                        if(!f.t || isProcessing) return;
                         setData([{ id: Date.now(), ...f, eps: [] }, ...data]);
                         setF({t:'', c:null}); setView('home');
-                    }} className="w-full bg-indigo-600 py-4 rounded-xl font-bold">등록</button>
+                    }} className="w-full bg-indigo-600 py-4 rounded-2xl font-bold shadow-xl">{isProcessing ? '처리 중...' : '생성하기'}</button>
                 </div>
             );
 
-            // 3. 회차 목록
             if (view === 'list' && cur) return (
                 <div className="max-w-md mx-auto min-h-screen">
-                    <div className="p-6 flex gap-4 items-end bg-slate-800/50 backdrop-blur sticky top-0 z-10">
-                        <div className="w-20 aspect-[3/4] card shrink-0">{cur.c && <img src={cur.c} className="w-full h-full object-cover" />}</div>
-                        <div className="flex-1 min-w-0">
-                            <h2 className="text-xl font-black mb-4 truncate">{cur.t}</h2>
+                    <div className="p-6 flex gap-5 items-end bg-slate-800/40 backdrop-blur-xl sticky top-0 z-10 border-b border-white/5">
+                        <div className="w-24 aspect-[3/4] card shrink-0 shadow-2xl border-white/10">{cur.c && <img src={cur.c} className="w-full h-full object-cover" />}</div>
+                        <div className="flex-1 min-w-0 pb-1">
+                            <h2 className="text-xl font-black mb-5 truncate leading-tight">{cur.t}</h2>
                             <div className="flex gap-2">
-                                <button onClick={() => setView('home')} className="bg-white/10 px-4 py-2 rounded text-xs font-bold">홈</button>
-                                <button onClick={() => setView('write')} className="bg-indigo-600 px-4 py-2 rounded text-xs font-bold">작성</button>
+                                <button onClick={() => setView('home')} className="bg-white/5 px-4 py-2 rounded-xl text-xs font-bold border border-white/5">목록</button>
+                                <button onClick={() => setView('write')} className="bg-indigo-600 px-4 py-2 rounded-xl text-xs font-bold shadow-lg">작성</button>
                             </div>
                         </div>
                     </div>
                     <div className="p-6 space-y-3">
                         {cur.eps.map((ep, i) => (
-                            <div key={ep.id} onClick={() => { setActiveEpIdx(i); setView('read'); }} className="card p-5 flex justify-between active:bg-slate-700 transition-colors cursor-pointer">
-                                <span className="font-bold">{i+1}. {ep.t}</span>
+                            <div key={ep.id} onClick={() => { setActiveEpIdx(i); setView('read'); }} className="card p-5 flex justify-between items-center active:bg-slate-700/50 transition-all cursor-pointer">
+                                <span className="font-bold text-slate-200">{i+1}. {ep.t}</span>
                                 <i data-lucide="chevron-right" size="16" className="opacity-20"></i>
                             </div>
                         ))}
@@ -110,48 +117,42 @@
                 </div>
             );
 
-            // 4. 회차 작성 (삽화 기능)
             if (view === 'write') return (
-                <div className="p-6 max-w-md mx-auto min-h-screen">
+                <div className={`p-6 max-w-md mx-auto min-h-screen ${isProcessing ? 'loading' : ''}`}>
                     <div className="flex justify-between items-center mb-8">
                         <button onClick={() => setView('list')} className="opacity-40"><i data-lucide="x"></i></button>
                         <div className="flex gap-4">
-                            <div className="relative bg-white/10 p-2 rounded-lg">
+                            <div className="relative bg-white/10 p-2.5 rounded-xl border border-white/5">
                                 <i data-lucide="image" size="20" className="text-indigo-400"></i>
-                                <input type="file" onChange={ev => {
-                                    const r = new FileReader();
-                                    r.onload = _ => {
-                                        const id = `[IMG_${Date.now()}]`;
-                                        setE({...e, b: e.b + `\n${id}\n`, imgs: [...e.imgs, {id, d: _.target.result}]});
-                                    };
-                                    r.readAsDataURL(ev.target.files[0]);
-                                }} className="absolute inset-0 opacity-0" />
+                                <input type="file" accept="image/*" onChange={(ev) => handleFile(ev.target.files[0], (res) => {
+                                    const id = `[IMG_${Date.now()}]`;
+                                    setE({...e, b: e.b + `\n${id}\n`, imgs: [...(e.imgs || []), {id, d: res}]});
+                                })} className="absolute inset-0 opacity-0 cursor-pointer" />
                             </div>
                             <button onClick={() => {
-                                if(!e.t || !e.b) return;
-                                const next = data.map(i => i.id === activeId ? {...i, eps: [...i.eps, {id: Date.now(), ...e}]} : i);
+                                if(!e.t || !e.b || isProcessing) return;
+                                const next = data.map(i => i.id === activeId ? {...i, eps: [...(i.eps || []), {id: Date.now(), ...e}]} : i);
                                 setData(next); setE({t:'', b:'', imgs:[]}); setView('list');
-                            }} className="text-indigo-400 font-bold">저장</button>
+                            }} className="text-indigo-400 font-black px-2">저장</button>
                         </div>
                     </div>
-                    <input placeholder="회차 제목" value={e.t} onChange={ev => setE({...e, t: ev.target.value})} className="text-xl font-black mb-4 border-b border-white/5" />
-                    <textarea placeholder="내용 작성..." value={e.b} onChange={ev => setE({...e, b: ev.target.value})} className="h-[500px] leading-relaxed resize-none" />
+                    <input placeholder="회차 제목" value={e.t} onChange={ev => setE({...e, t: ev.target.value})} className="text-xl font-black mb-6 border-b border-white/5 pb-3" />
+                    <textarea placeholder="이곳에 소설을 작성하세요..." value={e.b} onChange={ev => setE({...e, b: ev.target.value})} className="h-[500px] leading-relaxed text-lg resize-none font-light" />
                 </div>
             );
 
-            // 5. 읽기 모드
             if (view === 'read' && curEp) return (
-                <div className="max-w-md mx-auto min-h-screen bg-[#0a0f1d]">
-                    <header className="p-4 border-b border-white/5 sticky top-0 bg-[#0a0f1d]/90 backdrop-blur z-10 flex gap-4 items-center">
-                        <button onClick={() => setView('list')} className="opacity-40"><i data-lucide="arrow-left" size="20"></i></button>
-                        <span className="text-xs font-bold opacity-30">{curEp.t}</span>
+                <div className="max-w-md mx-auto min-h-screen bg-[#070b14]">
+                    <header className="p-4 border-b border-white/5 sticky top-0 bg-[#070b14]/95 backdrop-blur-lg z-10 flex gap-4 items-center">
+                        <button onClick={() => setView('list')} className="opacity-40 p-1"><i data-lucide="arrow-left" size="20"></i></button>
+                        <span className="text-[10px] font-bold tracking-tighter opacity-30 uppercase truncate">{curEp.t}</span>
                     </header>
-                    <div className="p-8 pb-32">
-                        <div className="text-lg leading-[2.2] font-light text-slate-300 whitespace-pre-wrap">
-                            {curEp.b.split(/(\[IMG_\d+\])/).map((p, i) => {
+                    <div className="p-8 pb-40">
+                        <div className="text-[17px] leading-[2.3] font-light text-slate-300 whitespace-pre-wrap break-all">
+                            {(curEp.b || "").split(/(\[IMG_\d+\])/).map((p, i) => {
                                 if (p.startsWith('[IMG_')) {
-                                    const img = curEp.imgs.find(img => img.id === p);
-                                    return img ? <img key={i} src={img.d} className="content-img" /> : null;
+                                    const img = (curEp.imgs || []).find(img => img.id === p);
+                                    return img ? <img key={i} src={img.d} className="w-full rounded-2xl my-8 shadow-2xl border border-white/5" /> : null;
                                 }
                                 return p;
                             })}
@@ -166,4 +167,3 @@
     </script>
 </body>
 </html>
-
