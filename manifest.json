@@ -2,6 +2,7 @@
   "name": "My Story Archive",
   "short_name": "Archive",
   "start_url": "/UJURO/",
+  "scope": "/UJURO/",
   "display": "standalone",
   "background_color": "#0f172a",
   "theme_color": "#6366f1",
@@ -9,7 +10,9 @@
     {
       "src": "https://cdn-icons-png.flaticon.com/512/3502/3502688.png",
       "sizes": "512x512",
-      "type": "image/png"
+      "type": "image/png",
+      "purpose": "any maskable"
     }
   ]
 }
+
