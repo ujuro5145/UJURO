@@ -1,0 +1,307 @@
+import React, { useState, useEffect } from 'react';
+import { 
+  Home, 
+  Search, 
+  Library, 
+  User, 
+  PlusCircle, 
+  ChevronLeft, 
+  Settings, 
+  Share2, 
+  MoreVertical,
+  Edit3,
+  Moon,
+  Sun,
+  Layout,
+  Play,
+  Image as ImageIcon
+} from 'lucide-react';
+
+const App = () => {
+  // --- State ---
+  const [view, setView] = useState('home'); // home, detail, reader, editor
+  const [theme, setTheme] = useState('dark'); // dark, white, sepia
+  const [fontSize, setFontSize] = useState(19);
+  const [lineHeight, setLineHeight] = useState(1.8);
+  const [selectedNovel, setSelectedNovel] = useState(null);
+  
+  // Mock Data
+  const [novels, setNovels] = useState([
+    {
+      id: 1,
+      title: "마법학교의 낙제생이 되었다",
+      author: "아카데미빌런",
+      cover: "https://images.unsplash.com/photo-1519074063912-ad2a052273d5?q=80&w=400",
+      tags: ["#플러스", "#독점", "#판타지"],
+      views: "1.2M",
+      likes: "45k",
+      description: "눈을 뜨니 내가 쓴 소설 속 낙제생이 되어 있었다. 그런데 이 녀석, 마력이 0이다?",
+      chapters: [
+        { id: 1, title: "1화. 빙의는 예고 없이 찾아온다", content: "정신을 차렸을 때, 내 눈앞에 보인 것은 호화로운 천장이 아니었다.\n\n습기가 가득한 지하실. 그리고 코끝을 찌르는 곰팡이 냄새.\n\n'여긴 어디지?'\n\n나는 당혹감에 몸을 일으켰다. 하지만 내 몸은 내 생각대로 움직이지 않았다.\n\n[상태창을 불러오시겠습니까?]\n\n눈앞에 떠오른 푸른색 반투명창. 그것은 내가 10년 동안 집필했던 소설 '마법학교의 영웅'에서 지겹도록 묘사했던 연출이었다." },
+        { id: 2, title: "2화. 마력 0의 마법사", content: "교실 안은 비웃음으로 가득 찼다.\n\n교단 위에 서 있는 교수는 차가운 눈빛으로 나를 내려다보고 있었다.\n\n\"카일, 다시 한 번 측정해 보겠나?\"\n\n나는 떨리는 손으로 수정구를 잡았다. 하지만 수정구는 아무런 반응도 보이지 않았다.\n\n마력 수치 0.\n\n마법학교 역사상 전무후무한 기록이었다." }
+      ]
+    }
+  ]);
+
+  // --- Themes ---
+  const themes = {
+    dark: "bg-[#0f1012] text-[#e1e1e1] border-[#1f2023]",
+    white: "bg-white text-[#1a1a1a] border-[#eeeeee]",
+    sepia: "bg-[#f4ecd8] text-[#5b4636] border-[#e6dbbf]"
+  };
+
+  const accentColor = "text-[#ff4e84]"; // Novelpia Pink
+  const accentBg = "bg-[#ff4e84]";
+
+  // --- Renderers ---
+  
+  const NovelCard = ({ novel }) => (
+    <div 
+      onClick={() => { setSelectedNovel(novel); setView('detail'); }}
+      className="flex flex-col gap-2 cursor-pointer group active:scale-95 transition-all"
+    >
+      <div className="relative aspect-[3/4] rounded-lg overflow-hidden shadow-lg border border-white/5">
+        <img src={novel.cover} alt={novel.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+        <div className="absolute top-2 left-2 flex flex-col gap-1">
+          {novel.tags.map(tag => (
+            <span key={tag} className={`text-[10px] px-1.5 py-0.5 rounded font-bold text-white ${tag.includes('플러스') ? 'bg-gradient-to-r from-purple-500 to-pink-500' : 'bg-blue-600'}`}>
+              {tag.replace('#', '')}
+            </span>
+          ))}
+        </div>
+      </div>
+      <div className="px-1">
+        <h3 className="font-bold text-sm line-clamp-2 leading-tight">{novel.title}</h3>
+        <p className="text-[11px] opacity-60 mt-1">{novel.author}</p>
+      </div>
+    </div>
+  );
+
+  const HomeView = () => (
+    <div className={`min-h-screen pb-24 ${themes[theme]}`}>
+      {/* Top Header */}
+      <header className="p-4 flex justify-between items-center sticky top-0 z-20 bg-inherit/80 backdrop-blur-md">
+        <h1 className={`text-2xl font-black italic tracking-tighter ${accentColor}`}>NOVEL-FREE</h1>
+        <div className="flex gap-4">
+          <Search size={22} />
+          <User size={22} />
+        </div>
+      </header>
+
+      {/* Banner Area */}
+      <div className="px-4 mb-8">
+        <div className="w-full h-40 rounded-2xl bg-gradient-to-br from-pink-600 to-indigo-700 p-6 flex flex-col justify-end relative overflow-hidden">
+           <div className="z-10">
+             <span className="bg-white/20 text-white text-[10px] px-2 py-1 rounded-full backdrop-blur-md">지금 뜨는 신작</span>
+             <h2 className="text-xl font-bold text-white mt-1">용사 파티에서 추방된<br/>짐꾼이 너무 강함</h2>
+           </div>
+           <div className="absolute right-[-20px] bottom-[-20px] opacity-30 transform rotate-12">
+             <Layout size={120} color="white" />
+           </div>
+        </div>
+      </div>
+
+      {/* Novel Sections */}
+      <section className="px-4 mb-8">
+        <div className="flex justify-between items-end mb-4">
+          <h2 className="text-lg font-bold">오늘의 추천 소설</h2>
+          <span className="text-xs opacity-50">더보기</span>
+        </div>
+        <div className="grid grid-cols-3 gap-4">
+          {novels.map(n => <NovelCard key={n.id} novel={n} />)}
+          {/* Mock repeats */}
+          <NovelCard novel={{...novels[0], id: 2, title: "악당의 딸은 아빠가 무섭다"}} />
+          <NovelCard novel={{...novels[0], id: 3, title: "빙의한 곳이 하필 감옥이다"}} />
+        </div>
+      </section>
+
+      {/* Bottom Nav */}
+      <nav className={`fixed bottom-0 left-0 right-0 h-16 border-t flex justify-around items-center z-30 bg-inherit`}>
+        <div className="flex flex-col items-center gap-1 text-pink-500">
+          <Home size={20} />
+          <span className="text-[10px]">홈</span>
+        </div>
+        <div className="flex flex-col items-center gap-1 opacity-40">
+          <Library size={20} />
+          <span className="text-[10px]">보관함</span>
+        </div>
+        <div className="flex flex-col items-center gap-1 opacity-40" onClick={() => setView('editor')}>
+          <PlusCircle size={20} />
+          <span className="text-[10px]">집필</span>
+        </div>
+        <div className="flex flex-col items-center gap-1 opacity-40">
+          <User size={20} />
+          <span className="text-[10px]">마이</span>
+        </div>
+      </nav>
+    </div>
+  );
+
+  const DetailView = () => (
+    <div className={`min-h-screen pb-20 ${themes[theme]}`}>
+      <div className="relative h-64">
+        <img src={selectedNovel.cover} className="w-full h-full object-cover blur-sm brightness-50" />
+        <button onClick={() => setView('home')} className="absolute top-4 left-4 p-2 bg-black/20 rounded-full backdrop-blur-md text-white">
+          <ChevronLeft />
+        </button>
+        <div className="absolute bottom-0 left-0 right-0 p-6 flex gap-4 items-end bg-gradient-to-t from-[#0f1012] to-transparent">
+          <img src={selectedNovel.cover} className="w-24 aspect-[3/4] rounded shadow-2xl border border-white/10" />
+          <div className="pb-1">
+            <h2 className="text-xl font-bold text-white mb-1">{selectedNovel.title}</h2>
+            <p className="text-xs text-pink-400 font-medium">{selectedNovel.author}</p>
+          </div>
+        </div>
+      </div>
+
+      <div className="p-6">
+        <div className="flex gap-4 mb-6">
+          <div className="flex-1 text-center py-2 bg-white/5 rounded-lg border border-white/10">
+            <p className="text-xs opacity-50 mb-1">조회수</p>
+            <p className="font-bold">{selectedNovel.views}</p>
+          </div>
+          <div className="flex-1 text-center py-2 bg-white/5 rounded-lg border border-white/10">
+            <p className="text-xs opacity-50 mb-1">추천</p>
+            <p className="font-bold">{selectedNovel.likes}</p>
+          </div>
+        </div>
+
+        <p className="text-sm opacity-70 leading-relaxed mb-8">{selectedNovel.description}</p>
+        
+        <div className="space-y-3">
+          <h3 className="font-bold mb-4">전체 회차 ({selectedNovel.chapters.length})</h3>
+          {selectedNovel.chapters.map((ch, idx) => (
+            <div 
+              key={ch.id} 
+              onClick={() => setView('reader')}
+              className="flex justify-between items-center p-4 bg-white/5 rounded-xl border border-white/5 active:bg-white/10"
+            >
+              <div>
+                <p className="text-sm font-medium">{ch.title}</p>
+                <p className="text-[10px] opacity-40 mt-1">2026.03.20</p>
+              </div>
+              <Play size={14} className="text-pink-500" />
+            </div>
+          ))}
+        </div>
+      </div>
+      
+      <div className="fixed bottom-0 left-0 right-0 p-4 bg-inherit border-t">
+        <button 
+          onClick={() => setView('reader')}
+          className={`w-full py-4 rounded-xl font-bold text-white ${accentBg} shadow-lg shadow-pink-500/20`}
+        >
+          첫 회부터 읽기
+        </button>
+      </div>
+    </div>
+  );
+
+  const ReaderView = () => {
+    const [showUi, setShowUi] = useState(true);
+    const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+
+    return (
+      <div className={`min-h-screen transition-colors duration-300 ${themes[theme]}`}>
+        {/* Reader UI Overlays */}
+        {showUi && (
+          <div className="fixed top-0 left-0 right-0 p-4 flex justify-between items-center z-40 bg-inherit/80 backdrop-blur-md border-b border-white/10">
+            <button onClick={() => setView('detail')}><ChevronLeft /></button>
+            <h3 className="text-sm font-bold opacity-80 truncate px-4">{selectedNovel.chapters[0].title}</h3>
+            <button onClick={() => setIsSettingsOpen(true)}><Settings size={20} /></button>
+          </div>
+        )}
+
+        {/* Text Area */}
+        <div 
+          className="max-w-xl mx-auto px-6 pt-24 pb-40"
+          onClick={() => setShowUi(!showUi)}
+        >
+          <div 
+            className="leading-relaxed whitespace-pre-wrap select-none"
+            style={{ fontSize: `${fontSize}px`, lineHeight: lineHeight }}
+          >
+            {selectedNovel.chapters[0].content}
+          </div>
+        </div>
+
+        {/* Settings Sheet */}
+        {isSettingsOpen && (
+          <div className="fixed inset-0 z-50 flex flex-col justify-end">
+            <div className="absolute inset-0 bg-black/60" onClick={() => setIsSettingsOpen(false)}></div>
+            <div className={`relative p-8 rounded-t-3xl border-t border-white/10 space-y-8 ${themes[theme]}`}>
+              <div>
+                <p className="text-xs opacity-50 mb-4 font-bold">배경 테마</p>
+                <div className="flex gap-4">
+                  {Object.keys(themes).map(t => (
+                    <button 
+                      key={t}
+                      onClick={() => setTheme(t)}
+                      className={`flex-1 py-3 rounded-xl border-2 transition-all ${theme === t ? 'border-pink-500 scale-105' : 'border-transparent opacity-50'} ${themes[t]} shadow-sm`}
+                    >
+                      {t === 'dark' ? '다크' : t === 'white' ? '화이트' : '세피아'}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div>
+                <div className="flex justify-between items-end mb-4">
+                  <p className="text-xs opacity-50 font-bold">글꼴 크기</p>
+                  <p className="text-sm font-bold text-pink-500">{fontSize}px</p>
+                </div>
+                <input 
+                  type="range" min="14" max="30" value={fontSize} 
+                  onChange={(e) => setFontSize(parseInt(e.target.value))}
+                  className="w-full h-1.5 bg-gray-700 rounded-lg appearance-none cursor-pointer accent-[#ff4e84]"
+                />
+              </div>
+
+              <button 
+                onClick={() => setIsSettingsOpen(false)}
+                className={`w-full py-4 rounded-xl font-bold text-white ${accentBg}`}
+              >
+                설정 적용
+              </button>
+            </div>
+          </div>
+        )}
+
+        {showUi && (
+          <div className="fixed bottom-0 left-0 right-0 p-4 flex gap-4 z-40 bg-inherit border-t border-white/10">
+            <button className="flex-1 py-3 text-sm font-medium border border-white/10 rounded-xl">이전화</button>
+            <button className="flex-1 py-3 text-sm font-medium border border-white/10 rounded-xl bg-white/5">목록</button>
+            <button className="flex-1 py-3 text-sm font-medium bg-pink-500 text-white rounded-xl">다음화</button>
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  return (
+    <div className="font-sans antialiased text-rendering-optimizeLegibility">
+      {view === 'home' && <HomeView />}
+      {view === 'detail' && <DetailView />}
+      {view === 'reader' && <ReaderView />}
+      
+      {/* Editor Mockup */}
+      {view === 'editor' && (
+        <div className={`min-h-screen ${themes[theme]} p-6`}>
+           <div className="flex justify-between items-center mb-8">
+             <button onClick={() => setView('home')}><ChevronLeft /></button>
+             <h2 className="font-bold">원고 작성</h2>
+             <button className="text-pink-500 font-bold">저장</button>
+           </div>
+           <input className="w-full bg-transparent text-2xl font-bold outline-none mb-4" placeholder="제목을 입력하세요" />
+           <div className="flex gap-4 mb-4 text-pink-500">
+             <ImageIcon size={20} />
+             <Play size={20} />
+           </div>
+           <textarea className="w-full h-[60vh] bg-transparent outline-none resize-none leading-relaxed" placeholder="본문을 작성하세요..." />
+        </div>
+      )}
+    </div>
+  );
+};
+
+export default App;
+
