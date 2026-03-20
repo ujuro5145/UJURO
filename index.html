@@ -1,10 +1,9 @@
-
 <!DOCTYPE html>
 <html lang="ko">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>우주로 (UJURO)</title>
+    <title>우주로</title>
     
     <link rel="manifest" href="manifest.json">
     <script>
@@ -23,7 +22,7 @@
         body { font-family: 'Noto Sans KR', sans-serif; background-color: #121214; color: #e1e1e1; margin: 0; }
         .bg-blue { background-color: #3b82f6; }
         .glass { background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.1); }
-        input, textarea { background: transparent; outline: none; border: none; color: white; width: 100%; }
+        input, textarea { background: transparent; border: none; outline: none; color: white; width: 100%; }
     </style>
 </head>
 <body>
@@ -32,47 +31,48 @@
         const { useState, useEffect } = React;
 
         const App = () => {
-            const [view, setView] = useState('home'); // home, create, detail, write
-            const [novels, setNovels] = useState(() => JSON.parse(localStorage.getItem('ujuro_v1') || '[]'));
+            const [view, setView] = useState('home');
+            const [novels, setNovels] = useState(() => JSON.parse(localStorage.getItem('ujuro_final') || '[]'));
             const [selectedId, setSelectedId] = useState(null);
 
             const [nForm, setNForm] = useState({ title: '', cover: null });
             const [eForm, setEForm] = useState({ title: '', content: '' });
 
             useEffect(() => {
-                localStorage.setItem('ujuro_v1', JSON.stringify(novels));
+                localStorage.setItem('ujuro_final', JSON.stringify(novels));
                 if (window.lucide) window.lucide.createIcons();
             }, [novels, view]);
 
-            const curNovel = novels.find(n => n.id === selectedId);
+            // 현재 선택된 작품 데이터 안전하게 가져오기
+            const currentNovel = novels.find(n => n.id === selectedId);
 
-            // 홈 화면
+            // 1. 홈 화면
             if (view === 'home') return (
-                <div className="p-6">
-                    <div className="flex justify-between items-center mb-10">
+                <div className="p-6 max-w-[500px] mx-auto">
+                    <header className="flex justify-between items-center mb-10">
                         <h1 className="text-2xl font-black italic text-blue-500">우주로</h1>
                         <button onClick={() => setView('create')} className="bg-blue px-4 py-2 rounded-full text-xs font-bold">+ 연재</button>
-                    </div>
+                    </header>
                     <div className="grid grid-cols-2 gap-4">
                         {novels.map(n => (
                             <div key={n.id} onClick={() => { setSelectedId(n.id); setView('detail'); }}>
                                 <div className="aspect-[3/4] glass rounded-xl overflow-hidden mb-2">
                                     {n.cover && <img src={n.cover} className="w-full h-full object-cover" />}
                                 </div>
-                                <div className="font-bold text-sm truncate">{n.title}</div>
+                                <div className="font-bold text-sm truncate px-1">{n.title}</div>
                             </div>
                         ))}
                     </div>
                 </div>
             );
 
-            // 작품 등록
+            // 2. 작품 등록
             if (view === 'create') return (
-                <div className="p-6">
-                    <button onClick={() => setView('home')} className="mb-6 opacity-50"><i data-lucide="chevron-left"></i></button>
+                <div className="p-6 max-w-[500px] mx-auto">
+                    <button onClick={() => setView('home')} className="mb-6 opacity-50"><i data-lucide="x"></i></button>
                     <div className="w-32 aspect-[3/4] glass mx-auto mb-8 rounded-xl overflow-hidden relative flex items-center justify-center">
                         {nForm.cover ? <img src={nForm.cover} className="w-full h-full object-cover" /> : <i data-lucide="image" className="opacity-10"></i>}
-                        <input type="file" onChange={e => {
+                        <input type="file" accept="image/*" onChange={e => {
                             const reader = new FileReader();
                             reader.onload = r => setNForm({...nForm, cover: r.target.result});
                             reader.readAsDataURL(e.target.files[0]);
@@ -80,6 +80,7 @@
                     </div>
                     <input placeholder="작품 제목" value={nForm.title} onChange={e => setNForm({...nForm, title: e.target.value})} className="border-b border-white/10 py-4 text-xl mb-8" />
                     <button onClick={() => {
+                        if(!nForm.title) return alert('제목을 입력해주세요');
                         setNovels([{ id: Date.now(), ...nForm, episodes: [] }, ...novels]);
                         setNForm({ title: '', cover: null });
                         setView('home');
@@ -87,46 +88,55 @@
                 </div>
             );
 
-            // 회차 목록 (상세화면)
-            if (view === 'detail' && curNovel) return (
-                <div>
-                    <div className="p-6 glass flex gap-4 items-end">
-                        <div className="w-20 aspect-[3/4] glass rounded overflow-hidden">
-                            {curNovel.cover && <img src={curNovel.cover} className="w-full h-full object-cover" />}
-                        </div>
-                        <div className="flex-1">
-                            <h2 className="text-xl font-bold mb-3">{curNovel.title}</h2>
-                            <div className="flex gap-2">
-                                <button onClick={() => setView('home')} className="bg-white/10 px-3 py-1 rounded text-xs">홈</button>
-                                <button onClick={() => setView('write')} className="bg-blue px-3 py-1 rounded text-xs">작성</button>
+            // 3. 회차 목록 (여기서 검은 화면 방지 로직 강화)
+            if (view === 'detail') {
+                if (!currentNovel) {
+                    setView('home'); // 데이터 없으면 강제로 홈으로 보냄
+                    return null;
+                }
+                return (
+                    <div className="max-w-[500px] mx-auto">
+                        <div className="p-6 glass flex gap-4 items-end bg-white/5">
+                            <div className="w-20 aspect-[3/4] glass rounded overflow-hidden shrink-0 shadow-xl">
+                                {currentNovel.cover && <img src={currentNovel.cover} className="w-full h-full object-cover" />}
+                            </div>
+                            <div className="flex-1 min-w-0">
+                                <h2 className="text-xl font-bold mb-3 truncate">{currentNovel.title}</h2>
+                                <div className="flex gap-2">
+                                    <button onClick={() => setView('home')} className="bg-white/10 px-4 py-2 rounded text-xs">뒤로</button>
+                                    <button onClick={() => setView('write')} className="bg-blue px-4 py-2 rounded text-xs font-bold">작성</button>
+                                </div>
                             </div>
                         </div>
+                        <div className="p-6 space-y-3">
+                            {currentNovel.episodes.length === 0 && <div className="py-20 text-center opacity-20 text-xs">등록된 회차가 없습니다.</div>}
+                            {currentNovel.episodes.map((ep, i) => (
+                                <div key={ep.id} className="glass p-5 rounded-2xl flex justify-between items-center">
+                                    <span className="font-bold">{i + 1}화. {ep.title}</span>
+                                    <i data-lucide="chevron-right" className="opacity-20"></i>
+                                </div>
+                            ))}
+                        </div>
                     </div>
-                    <div className="p-6 space-y-3">
-                        {curNovel.episodes.map((ep, i) => (
-                            <div key={ep.id} className="glass p-4 rounded-xl flex justify-between">
-                                <span>{i + 1}화. {ep.title}</span>
-                                <i data-lucide="chevron-right" className="opacity-20"></i>
-                            </div>
-                        ))}
-                    </div>
-                </div>
-            );
+                );
+            }
 
-            // 회차 작성
+            // 4. 회차 작성
             if (view === 'write') return (
-                <div className="p-6">
-                    <div className="flex justify-between items-center mb-6">
-                        <button onClick={() => setView('detail')}><i data-lucide="x"></i></button>
+                <div className="p-6 max-w-[500px] mx-auto">
+                    <header className="flex justify-between items-center mb-6">
+                        <button onClick={() => setView('detail')}><i data-lucide="chevron-left"></i></button>
+                        <h2 className="text-xs font-bold text-blue-500 uppercase">회차 작성</h2>
                         <button onClick={() => {
+                            if(!eForm.title || !eForm.content) return alert('내용을 입력해주세요');
                             const up = novels.map(n => n.id === selectedId ? {...n, episodes: [...n.episodes, {id: Date.now(), ...eForm}]} : n);
                             setNovels(up);
                             setEForm({title:'', content:''});
                             setView('detail');
                         }} className="text-blue-500 font-bold">등록</button>
-                    </div>
-                    <input placeholder="회차 제목" value={eForm.title} onChange={e => setEForm({...eForm, title: e.target.value})} className="text-lg font-bold border-b border-white/10 py-2 mb-4" />
-                    <textarea placeholder="내용을 입력하세요" value={eForm.content} onChange={e => setEForm({...eForm, content: e.target.value})} className="h-96" />
+                    </header>
+                    <input placeholder="회차 제목" value={eForm.title} onChange={e => setEForm({...eForm, title: e.target.value})} className="text-lg font-bold border-b border-white/10 py-3 mb-6" />
+                    <textarea placeholder="내용을 입력하세요" value={eForm.content} onChange={e => setEForm({...eForm, content: e.target.value})} className="w-full h-[400px] leading-relaxed resize-none" />
                 </div>
             );
 
